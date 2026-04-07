@@ -118,18 +118,22 @@ window.addEventListener('load', async () => {
 
 <!-- TABS -->
 <div class="tabs">
-  <div class="tab active" onclick="showTab('overview')">Overview</div>
-  <div class="tab" onclick="showTab('loops')">The Loops Compared</div>
-  <div class="tab" onclick="showTab('flowcharts')">Reference Diagrams</div>
-  <div class="tab" onclick="showTab('skills')">Skills: Auto vs Manual</div>
-  <div class="tab" onclick="showTab('memory')">Memory</div>
-  <div class="tab" onclick="showTab('code')">Real Code</div>
-  <div class="tab" onclick="showTab('oracle')">Oracle Connection</div>
+  <div class="tab active" onclick="showTab('overview', this)">Overview</div>
+  <div class="tab" onclick="showTab('loops', this)">The Loops Compared</div>
+  <div class="tab" onclick="showTab('flowcharts', this)">Reference Diagrams</div>
+  <div class="tab" onclick="showTab('skills', this)">Skills: Auto vs Manual</div>
+  <div class="tab" onclick="showTab('memory', this)">Memory</div>
+  <div class="tab" onclick="showTab('code', this)">Real Code</div>
+  <div class="tab" onclick="showTab('oracle', this)">Oracle Connection</div>
 </div>
 
 <!-- TAB: OVERVIEW -->
 <div id="tab-overview" class="tab-content active">
   <h2>The Core Question: What Is Different?</h2>
+
+  <div class="info-box">
+    <strong>What is a self-improving agent?</strong> A normal AI agent (like Claude Code or ChatGPT) answers your question and forgets you exist. A <em>self-improving</em> agent does the same thing, but after answering it asks itself: "Did I learn something new? Should I write it down?" If yes, it saves a note to a file on disk. Next time you ask a similar question, it reads that note first — so it answers faster and better. Over weeks and months, it builds a personal library of everything that worked. That is the difference.
+  </div>
 
   <div class="info-box key">
     <strong>One sentence answer:</strong> A coding agent loop runs once per task and forgets everything. A self-improving loop runs forever, and after each task it saves what it learned so the NEXT task goes better.
@@ -524,7 +528,38 @@ flowchart TD
 <div id="tab-skills" class="tab-content">
   <h2>Skills: Auto-Generated vs Manually Written</h2>
 
-  <p>This is the biggest practical difference between Hermes and your coding agents.</p>
+  <div class="info-box">
+    <strong>What is a skill?</strong> A skill is a text file (Markdown) that tells the agent HOW to do something. Think of it like a recipe card in a kitchen. Instead of figuring out how to make pasta from scratch every time, the chef reads the recipe card and follows it. In AI agents, a skill file says things like: "When the user asks to set up Docker, do these 4 steps in this order. Watch out for this common error." The agent reads the skill before starting work.
+  </div>
+
+  <p>The biggest practical difference between Hermes and coding agents: who writes these recipe cards.</p>
+
+  <h3>What, Why, How — Skills</h3>
+  <table>
+    <tr><th>Aspect</th><th><span class="badge badge-hermes">Hermes</span> Auto Skills</th><th><span class="badge badge-coding">V4 / Runnable</span> Manual Skills</th></tr>
+    <tr>
+      <td><strong>What</strong></td>
+      <td>After a complex task (5+ tool calls), a background LLM writes a <code>SKILL.md</code> file to <code>~/.hermes/skills/</code>. Next session, that file is automatically loaded into the system prompt.</td>
+      <td>A developer (you) writes a <code>.md</code> file by hand and commits it to git. It's loaded at startup every session — always the same until you update it.</td>
+    </tr>
+    <tr>
+      <td><strong>Why</strong></td>
+      <td>Zero effort scaling. Every complex task produces a new skill. After 100 sessions, you have 100 skills — all from real experience, not guesswork. The agent gets faster over time without you doing anything.</td>
+      <td>Higher reliability. A human-reviewed skill won't contain hallucinated steps. But it doesn't scale — you can only write so many manually, and they go stale without updates.</td>
+    </tr>
+    <tr>
+      <td><strong>How updates work</strong></td>
+      <td>When the agent uses a skill and hits a problem NOT covered by it, the background LLM patches the skill immediately. Self-correcting.</td>
+      <td>You notice the skill is outdated, open the file, edit it, commit, push. Manual process.</td>
+    </tr>
+    <tr>
+      <td><strong>Risk</strong></td>
+      <td style="color:#f0883e">Can save wrong patterns or hallucinate steps. No human review.</td>
+      <td style="color:#3fb950">Human-verified. More reliable but slower to grow.</td>
+    </tr>
+  </table>
+
+  <h3>Side-by-Side: What a Skill File Looks Like</h3>
 
   <div class="side-by-side">
     <div>
@@ -639,8 +674,32 @@ Do NOT create a skill when:
   <h2>Memory: How Each Agent Remembers</h2>
 
   <div class="info-box">
+    <strong>What is agent memory?</strong> When you talk to ChatGPT, each conversation starts fresh — it doesn't know what you said yesterday. That's "no memory." Agent memory means saving information to a file or database so the AI can read it next time. There are two types: <em>in-session</em> (remembers within one conversation — all agents have this) and <em>cross-session</em> (remembers across conversations — only Hermes has this). Cross-session memory is the key difference.
+  </div>
+
+  <div class="info-box key">
     <strong>Simple rule:</strong> Coding agents (V4, Runnable) remember nothing between sessions. Hermes remembers everything, forever, across all sessions.
   </div>
+
+  <h3>What, Why, How — Memory</h3>
+  <table>
+    <tr><th>Aspect</th><th><span class="badge badge-hermes">Hermes</span></th><th><span class="badge badge-coding">Coding Agents</span></th></tr>
+    <tr>
+      <td><strong>What</strong></td>
+      <td>5-layer memory: in-session history + cross-session files (<code>~/.hermes/memory/</code>) + skills + user model (Honcho) + memory compression. Full-text search (FTS5) across all past sessions.</td>
+      <td>1-layer: in-session conversation history in the context window. When it fills up, old turns are compressed into a summary. Session ends = everything gone.</td>
+    </tr>
+    <tr>
+      <td><strong>Why it matters</strong></td>
+      <td>Remembering "you prefer dark mode" or "last time Docker failed because of nginx permissions" means the agent never asks the same question twice and avoids past mistakes.</td>
+      <td>Fine for one-off tasks. But if you use the same agent daily, you're re-teaching it every single session. Wasteful.</td>
+    </tr>
+    <tr>
+      <td><strong>How it's stored</strong></td>
+      <td>JSON files on disk + SQLite FTS5 index. Background LLM periodically compresses old memories to save space while keeping the essentials.</td>
+      <td>Nowhere. The conversation is in RAM only. When the process exits, it's gone.</td>
+    </tr>
+  </table>
 
   <h3>Memory Architecture Side-by-Side</h3>
   <div class="side-by-side">
@@ -697,6 +756,19 @@ Do NOT create a skill when:
 <!-- TAB: CODE -->
 <div id="tab-code" class="tab-content">
   <h2>Real Code — How It Works</h2>
+
+  <div class="info-box">
+    <strong>What is this tab?</strong> The other tabs explained WHAT the self-improving loop does and WHY. This tab shows HOW — the actual Python code from the Hermes repo. You can read along line by line. Each step has a comment explaining what it does in plain English. If you've never read Python before: <code>self._variable</code> means "the agent's internal data", <code>def function():</code> means "here's a function", and <code>#</code> means "this is a comment for humans."
+  </div>
+
+  <div class="info-box key">
+    <strong>The 5 steps of the self-improving loop in code:</strong><br>
+    1. Counter — count how many turns have passed<br>
+    2. Spawn — fork a second LLM in a background thread<br>
+    3. Prompt — tell that LLM "review this conversation, save anything useful"<br>
+    4. Write — save the skill to a <code>.md</code> file on disk<br>
+    5. Load — next session, inject all saved skills into the system prompt
+  </div>
 
   <h3>Step 1: The Counter (runs after every turn)</h3>
   <p><span class="badge badge-file">run_agent.py:1027 + 7240</span></p>
@@ -910,10 +982,16 @@ while (hasMoreToolCalls) {
 </div>
 
 <script>
-function showTab(name) {
+function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  event.target.classList.add('active');
+  if (el) { el.classList.add('active'); }
+  else {
+    // Find the tab button by matching the onclick attribute
+    document.querySelectorAll('.tab').forEach(t => {
+      if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'" + name + "'")) t.classList.add('active');
+    });
+  }
   document.getElementById('tab-' + name).classList.add('active');
 }
 </script>
